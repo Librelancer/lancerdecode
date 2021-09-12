@@ -97,6 +97,10 @@ ld_pcmstream_t riff_getstream(ld_stream_t stream)
 	}
 	if(trim_samples == -1)
 		total_samples = trim_samples = -1; //Incomplete data, don't bother trimming
+    if(total_samples != -1 && (wave_data.subChunk2Size * 8) / total_samples / wave_format.numChannels > 1) {
+        //this fact chunk is incorrect, throw away the data
+        total_samples = -1;
+    }
 	switch (wave_format.audioFormat) {
 		case WAVE_FORMAT_PCM:
 			break; //Default decoder
