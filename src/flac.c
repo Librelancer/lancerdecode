@@ -58,15 +58,11 @@ void flac_close(ld_stream_t stream)
 	free(stream);
 }
 
-ld_pcmstream_t flac_getstream(ld_stream_t stream, int oggC)
+ld_pcmstream_t flac_getstream(ld_stream_t stream)
 {
 	drflac *pFlac = drflac_open(read_stream_drflac, seek_stream_drflac, (void*)stream);
 	if(!pFlac) {
-		if(oggC) {
-			LOG_ERROR("Unable to open ogg file");
-		} else {
-			LOG_ERROR("Flac decode failed");
-		}
+		LOG_ERROR("Flac decode failed");
 		stream->close(stream);
 		return NULL;
 	}

@@ -2,8 +2,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-//read 512 bytes at a time
-#define READ_BUFFER_SIZE 512
+//read 1024 bytes at a time
+#define READ_BUFFER_SIZE 1024
 
 typedef struct {
     ld_stream_t source;
@@ -23,7 +23,7 @@ static size_t sbuffer_read(void* ptr, size_t size, size_t count, ld_stream_t str
     if(!userdata->bufferFilled) {
         userdata->readOffset = 0;
         userdata->filePos += userdata->readLength;
-        userdata->readLength = (int32_t)userdata->source->read((void*)userdata->readbuffer, READ_BUFFER_SIZE, 1, userdata->source);
+        userdata->readLength = (int32_t)userdata->source->read((void*)userdata->readbuffer, 1, READ_BUFFER_SIZE, userdata->source);
         userdata->bufferFilled = 1;
     }
     if(!userdata->readLength) return 0;
@@ -38,7 +38,7 @@ static size_t sbuffer_read(void* ptr, size_t size, size_t count, ld_stream_t str
         if(total_bytes < sz_bytes || userdata->readOffset >= userdata->readLength) {        
             userdata->readOffset = 0;
             userdata->filePos += userdata->readLength;
-            userdata->readLength = (int32_t)userdata->source->read((void*)userdata->readbuffer, READ_BUFFER_SIZE, 1, userdata->source);
+            userdata->readLength = (int32_t)userdata->source->read((void*)userdata->readbuffer, 1, READ_BUFFER_SIZE, userdata->source);
             userdata->bufferFilled = 1;
             if(!userdata->readLength) return total_bytes;
         }
@@ -56,11 +56,12 @@ static int sbuffer_seek(ld_stream_t stream, int32_t offset, LDSEEK origin)
 {
     sbuffer_userdata_t *userdata = (sbuffer_userdata_t*)stream->userData;
     if(origin == LDSEEK_CUR) offset += userdata->readOffset;
-    userdata->filePos = userdata->source->seek(userdata->source, offset, origin);
     userdata->readOffset = 0;
     userdata->readLength = 0;
     userdata->bufferFilled = 0;
-    return userdata->filePos;
+    int retval = userdata->source->seek(userdata->source, offset, origin);
+    userdata->filePos = userdata->source->tell(userdata->source);
+    return retval;
 }
 
 static void sbuffer_close(ld_stream_t stream)

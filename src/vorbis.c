@@ -97,15 +97,16 @@ void ogg_close(ld_stream_t stream)
 }
 
 
-ld_pcmstream_t ogg_getstream(ld_stream_t stream)
+ld_pcmstream_t vorbis_getstream(ld_stream_t stream)
 {
 	int err;
     ld_stream_t sbuffer = sbuffer_create(stream);
 	stb_vorbis *vorbis = stb_vorbis_open_file(sbuffer, 0, &err, NULL);
 	if(!vorbis) {
-		stream->seek(stream, 0, LDSEEK_SET);
         sbuffer_free(sbuffer);
-		return flac_getstream(stream, 1);
+		LOG_ERROR_F("Vorbis decode failed: %s", stb_vorbis_strerror(err));
+		stream->close(stream);
+		return NULL;
 	}
 	stb_vorbis_info info = stb_vorbis_get_info(vorbis);
 	ogg_userdata_t *userdata = (ogg_userdata_t*)malloc(sizeof(ogg_userdata_t));

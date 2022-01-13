@@ -15,12 +15,13 @@ LDEXPORT void ld_errorlog_register(ld_errorlog_callback_t cb)
 
 void ld_logerrorf(const char *fmt, ...)
 {
-	if(!callback)
-		return;
     char buffer[1024];
 	va_list args;
 	va_start(args, fmt);
 	vsnprintf(buffer,1024,fmt,args);
-	callback(buffer);
+	if(callback)
+        callback(buffer);
+	else
+        fprintf(stderr, "%s\n", buffer);
 	va_end(args);
 }
