@@ -172,4 +172,5 @@ int libopusfile_Open(void)
     _op_read_stereo = (P_op_read_stereo)dlsym(library, "op_read_stereo");
     _op_free = (P_op_free)dlsym(library, "op_free");
     _op_raw_seek = (P_op_raw_seek)dlsym(library, "op_raw_seek");
+    return 1;
 }
