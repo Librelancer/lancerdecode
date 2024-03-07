@@ -8,7 +8,7 @@
 static int libopus_stream_read(void *_stream, unsigned char *_ptr, int _nbytes)
 {
     ld_stream_t ld = (ld_stream_t)_stream;
-    return (int)ld->read(_ptr, 1, _nbytes, ld);
+    return (int)ld->read(_ptr, _nbytes, ld);
 }
 
 static int libopus_stream_seek(void *_stream, int64_t offset, int whence)
@@ -65,11 +65,11 @@ typedef struct opus_userdata {
     int eof;
 } opus_userdata_t;
 
-size_t opus_read(void* ptr, size_t size, size_t count, ld_stream_t stream)
+size_t opus_read(void* ptr, size_t size, ld_stream_t stream)
 {
     opus_userdata_t *userdata = (opus_userdata_t*)stream->userData;
     if(userdata->eof) return 0;
-    size_t sz_bytes = size * count;
+    size_t sz_bytes = size;
 	if((sz_bytes % 2) != 0) {
 		LOG_ERROR("opus_read: buffer size must be a multiple of sizeof(short)");
 		return 0;

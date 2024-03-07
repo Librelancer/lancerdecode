@@ -14,16 +14,16 @@ typedef struct {
     char readbuffer[READ_BUFFER_SIZE];
 } sbuffer_userdata_t;
 
-static size_t sbuffer_read(void* ptr, size_t size, size_t count, ld_stream_t stream)
+static size_t sbuffer_read(void* ptr, size_t size, ld_stream_t stream)
 {
     sbuffer_userdata_t *userdata = (sbuffer_userdata_t*)stream->userData;
-	int32_t sz_bytes = (int32_t)(size * count);
+	int32_t sz_bytes = (int32_t)size;
     if(sz_bytes <= 0) return 0;
     //Read after seek/init
     if(!userdata->bufferFilled) {
         userdata->readOffset = 0;
         userdata->filePos += userdata->readLength;
-        userdata->readLength = (int32_t)userdata->source->read((void*)userdata->readbuffer, 1, READ_BUFFER_SIZE, userdata->source);
+        userdata->readLength = (int32_t)userdata->source->read((void*)userdata->readbuffer, READ_BUFFER_SIZE, userdata->source);
         userdata->bufferFilled = 1;
     }
     if(!userdata->readLength) return 0;
@@ -38,7 +38,7 @@ static size_t sbuffer_read(void* ptr, size_t size, size_t count, ld_stream_t str
         if(total_bytes < sz_bytes || userdata->readOffset >= userdata->readLength) {        
             userdata->readOffset = 0;
             userdata->filePos += userdata->readLength;
-            userdata->readLength = (int32_t)userdata->source->read((void*)userdata->readbuffer, 1, READ_BUFFER_SIZE, userdata->source);
+            userdata->readLength = (int32_t)userdata->source->read((void*)userdata->readbuffer, READ_BUFFER_SIZE, userdata->source);
             userdata->bufferFilled = 1;
             if(!userdata->readLength) return total_bytes;
         }

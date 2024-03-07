@@ -14,7 +14,7 @@ LDEXPORT void ld_stream_destroy(ld_stream_t stream)
 LDEXPORT int ld_stream_getc(ld_stream_t stream)
 {
 	uint8_t ch;
-	if(stream->read(&ch,1,1,stream)) {
+	if(stream->read(&ch,1,stream)) {
 		return ch;
 	}
 	return LDEOF;
@@ -29,16 +29,18 @@ typedef struct {
 
 #define MIN(x,y) ((x) > (y) ? (y) : (x))
 
-size_t stream_wrapread(void* ptr, size_t size, size_t count, ld_stream_t stream)
+size_t stream_wrapread(void* buffer, size_t size, ld_stream_t stream)
 {
 	wrapper_data_t *data = (wrapper_data_t*)stream->userData;
 	int32_t curr = data->source->tell(data->source);
-    int32_t sz = (int32_t)(size * count);
-	sz = MIN((int32_t)(data->len - (curr - data->offset)),sz);
-	if(sz <= 0)
+    int32_t sz = (int32_t)(size);
+    int32_t remaining = (int32_t)(data->len - (curr - data->offset));
+	if(size <= 0 || remaining <= 0)
 		return 0;
-	size_t read = data->source->read(ptr, sz, 1, data->source);
-	return read;
+	else if (sz <= remaining)
+	    return data->source->read(buffer, size, data->source);
+	else
+	    return data->source->read(buffer, remaining, data->source);
 }
 
 int stream_wrapseek(ld_stream_t stream, int32_t offset, LDSEEK origin)
@@ -87,9 +89,9 @@ LDEXPORT ld_stream_t ld_stream_wrap(ld_stream_t src, int32_t len, int closeparen
     return stream;
 }
 
-size_t file_read(void* ptr, size_t size, size_t count, ld_stream_t stream)
+size_t file_read(void* buffer, size_t size, ld_stream_t stream)
 {
-    return fread(ptr, size, count, (FILE*)stream->userData);
+    return fread(buffer, 1, size, (FILE*)stream->userData);
 }
 
 int file_seek(ld_stream_t stream, int32_t offset, LDSEEK origin)

@@ -13,7 +13,7 @@
 size_t read_stream_drflac(void *pUserData, void *pBufferOut, size_t size)
 {
 	ld_stream_t stream = (ld_stream_t)pUserData;
-	return stream->read(pBufferOut, 1, size, stream);
+	return stream->read(pBufferOut, size, stream);
 }
 
 unsigned int seek_stream_drflac(void *pUserData, int offset, drflac_seek_origin origin)
@@ -31,10 +31,10 @@ typedef struct {
 	ld_stream_t baseStream;
 } flac_userdata_t;
 
-size_t flac_read(void* ptr, size_t size, size_t count, ld_stream_t stream)
+size_t flac_read(void* ptr, size_t size, ld_stream_t stream)
 {
 	flac_userdata_t *userdata = (flac_userdata_t*)stream->userData;
-	size_t sampleCount = (size * count) / 2;
+	size_t sampleCount = size / 2;
 	size_t samplesRead = (size_t)drflac_read_s16(userdata->pFlac, (size_t)sampleCount, (drflac_int16*)ptr);
 	return samplesRead * 2;
 }

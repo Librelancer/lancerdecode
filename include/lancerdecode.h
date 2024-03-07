@@ -34,10 +34,10 @@ typedef struct ld_stream *ld_stream_t;
 typedef struct ld_pcmstream *ld_pcmstream_t;
 
 struct ld_stream {
-    size_t (*read)(void*,size_t,size_t,ld_stream_t);
-    int (*seek)(ld_stream_t,int32_t,LDSEEK);
-    int32_t (*tell)(ld_stream_t); //Only set for base file streams
-    void (*close)(ld_stream_t);
+    size_t (*read)(void* buffer,size_t size,ld_stream_t stream);
+    int (*seek)(ld_stream_t stream,int32_t offset,LDSEEK origin);
+    int32_t (*tell)(ld_stream_t stream); //Only set for base file streams
+    void (*close)(ld_stream_t stream);
     void* userData;
 };
 

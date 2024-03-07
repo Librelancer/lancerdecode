@@ -27,17 +27,17 @@ ld_pcmstream_t ogg_getstream(ld_stream_t stream)
     oggpage_t page;
     uint8_t segments [256];
     unsigned char ident[9];
-    if(stream->read(&page, sizeof(oggpage_t), 1, stream) < 1) {
+    if(stream->read(&page, sizeof(oggpage_t), stream) < sizeof(oggpage_t)) {
         LOG_ERROR("Malformed ogg file: unexpected EOF");
         stream->close(stream);
         return NULL;
     }
-    if(stream->read(segments, 1, page.segment_count, stream) < page.segment_count) {
+    if(stream->read(segments, page.segment_count, stream) < page.segment_count) {
         LOG_ERROR("Malformed ogg file: unexpected EOF");
         stream->close(stream);
         return NULL;
     }
-    if(stream->read(ident, 9, 1, stream) < 1) {
+    if(stream->read(ident, 9, stream) < 9) {
         LOG_ERROR("Malformed ogg file: unexpected EOF");
         stream->close(stream);
         return NULL;
@@ -61,7 +61,7 @@ LDEXPORT ld_pcmstream_t ld_pcmstream_open(ld_stream_t stream)
 {
 	unsigned char magic[4];
 	/* Read in magic */
-	stream->read(magic,4,1,stream);
+	stream->read(magic,4,stream);
 	stream->seek(stream,0,LDSEEK_SET);
 	/* Detect file type */
 	//Riff

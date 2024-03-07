@@ -24,6 +24,8 @@ typedef struct {
   uint32_t subChunk2Size;
 } wave_data_t;
 
+#define BUFFER_SIZE 32768
+
 int main(int argc, char **argv)
 {
     if(argc < 3) {
@@ -36,16 +38,16 @@ int main(int argc, char **argv)
         return 2;
     }
     
-    FILE *output = fopen(argv[2], "wb");
-    if(!output) {
-        fprintf(stderr, "unable to open file %s for writing\n", argv[2]);
-        return 2;
-    }
-    
     ld_pcmstream_t audio = ld_pcmstream_open(input);
     if(!audio) {
         fprintf(stderr, "unable to decode %s\n", argv[1]);
         return 1;
+    }
+    
+    FILE *output = fopen(argv[2], "wb");
+    if(!output) {
+        fprintf(stderr, "unable to open file %s for writing\n", argv[2]);
+        return 2;
     }
     
     printf("frequency: %d\n", audio->frequency);
@@ -76,8 +78,8 @@ int main(int argc, char **argv)
     fwrite(&length, 4, 1, output);
     
     int readlen = 0;
-    unsigned char buffer[4096];
-    while((readlen = audio->stream->read(buffer, 1, 4096, audio->stream))) {
+    unsigned char buffer[BUFFER_SIZE];
+    while((readlen = audio->stream->read(buffer, BUFFER_SIZE, audio->stream))) {
         length += readlen;
         fwrite(buffer, readlen, 1, output);
     }

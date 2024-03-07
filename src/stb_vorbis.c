@@ -1307,7 +1307,7 @@ static int getn(vorb *z, uint8 *data, int n)
    }
 
    #ifndef STB_VORBIS_NO_STDIO   
-   if (z->fstream->read(data, n, 1, z->fstream) == n)
+   if (z->fstream->read(data, n, z->fstream) == n)
       return 1;
    else {
       z->eof = 1;

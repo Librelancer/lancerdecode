@@ -46,7 +46,7 @@ ld_pcmstream_t riff_getstream(ld_stream_t stream)
 	wave_data_t wave_data;
 	ld_pcmstream_t retsound;
 
-	stream->read(&riff_header, sizeof(riff_header_t), 1, stream);
+	stream->read(&riff_header, sizeof(riff_header_t), stream);
 
 	if(memcmp(riff_header.chunkID, "RIFF", 4) != 0 ||
 		memcmp(riff_header.format, "WAVE", 4) != 0) {
@@ -55,7 +55,7 @@ ld_pcmstream_t riff_getstream(ld_stream_t stream)
 		return 0;
 	} 
 
-	stream->read (&wave_format, sizeof(wave_format_t), 1, stream);
+	stream->read (&wave_format, sizeof(wave_format_t), stream);
 
 	if(memcmp(wave_format.subChunkID, "fmt ", 4) != 0) {
 		char actual[5] = { wave_format.subChunkID[0],
@@ -69,10 +69,10 @@ ld_pcmstream_t riff_getstream(ld_stream_t stream)
 		stream->seek(stream, wave_format.subChunkSize - 16, LDSEEK_CUR);
 
 	int has_data = 0;
-	int32_t total_samples = -1;
-	int32_t trim_samples = -1;
+	int32_t total_frames = -1;
+	int32_t trim_frames = -1;
 	while(!has_data) {
-		if(!stream->read(&wave_data, sizeof(wave_data_t), 1, stream))
+		if(!stream->read(&wave_data, sizeof(wave_data_t), stream))
 		{
 			stream->close(stream);
 			LOG_ERROR("Unable to find WAVE data");
@@ -82,12 +82,12 @@ ld_pcmstream_t riff_getstream(ld_stream_t stream)
 			has_data = 1;
 		} else if (memcmp(wave_data.subChunkID, "fact", 4) == 0) {
 			//MP3: Total PCM Samples encoded, trims padding
-			stream->read(&total_samples, sizeof(int32_t), 1, stream);
+			stream->read(&total_frames, sizeof(int32_t), stream);
 			if(wave_data.subChunk2Size - sizeof(int32_t) > 0)
 				stream->seek(stream, wave_data.subChunk2Size - sizeof(int32_t), LDSEEK_CUR);
 		} else if (memcmp(wave_data.subChunkID, "trim", 4) == 0) {
 			//Freelancer MP3: trim samples at start
-			stream->read(&trim_samples, sizeof(int32_t), 1, stream); 
+			stream->read(&trim_frames, sizeof(int32_t), stream); 
 			if(wave_data.subChunk2Size - sizeof(int32_t) > 0)
 				stream->seek(stream,wave_data.subChunk2Size - sizeof(int32_t), LDSEEK_CUR);
 		} else {
@@ -95,17 +95,17 @@ ld_pcmstream_t riff_getstream(ld_stream_t stream)
 			stream->seek(stream, wave_data.subChunk2Size, LDSEEK_CUR);
 		}
 	}
-	if(trim_samples == -1)
-		total_samples = trim_samples = -1; //Incomplete data, don't bother trimming
-    if(total_samples != -1 && (wave_data.subChunk2Size * 8) / total_samples / wave_format.numChannels > 1) {
+	if(trim_frames == -1)
+		total_frames = trim_frames = -1; //Incomplete data, don't bother trimming
+    /*if(total_frames != -1 && (wave_data.subChunk2Size * 8) / total_frames / wave_format.numChannels > 1) {
         //this fact chunk is incorrect, throw away the data
-        total_samples = -1;
-    }
+        total_frames = -1;
+    }*/
 	switch (wave_format.audioFormat) {
 		case WAVE_FORMAT_PCM:
 			break; //Default decoder
 		case WAVE_FORMAT_MP3:
-			return mp3_getstream(ld_stream_wrap(stream, wave_data.subChunk2Size, 1),wave_format.numChannels, wave_format.sampleRate, trim_samples, total_samples);
+			return mp3_getstream(ld_stream_wrap(stream, wave_data.subChunk2Size, 1),wave_format.numChannels, wave_format.sampleRate, trim_frames, total_frames);
 		default:
 			LOG_ERROR_F("Unsupported format in WAVE file: '%x'", wave_format.audioFormat);
 			stream->close(stream);

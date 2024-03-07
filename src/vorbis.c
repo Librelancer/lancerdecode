@@ -63,10 +63,10 @@ typedef struct {
 	int channels;
 } ogg_userdata_t;
 
-size_t ogg_read(void* ptr, size_t size, size_t count, ld_stream_t stream)
+size_t ogg_read(void* ptr, size_t size, ld_stream_t stream)
 {
 	ogg_userdata_t *userdata = (ogg_userdata_t*)stream->userData;
-	size_t sz_bytes = size * count;
+	size_t sz_bytes = size;
 	if((sz_bytes % 2) != 0) {
 		LOG_ERROR("ogg_read: buffer size must be a multiple of sizeof(short)");
 		return 0;
