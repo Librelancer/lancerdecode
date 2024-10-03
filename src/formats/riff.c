@@ -117,7 +117,7 @@ ld_pcmstream_t riff_getstream(ld_stream_t stream, ld_options_t options, const ch
 			return 0;
 	}
 
-	retsound = (ld_pcmstream_t)malloc(sizeof(struct ld_pcmstream));
+	retsound = pcmstream_init(options);
 
 	if(wave_format.numChannels == 1) {
 		if (wave_format.bitsPerSample == 8) {
