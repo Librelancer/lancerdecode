@@ -2,10 +2,10 @@
 // This file is subject to the terms and conditions defined in
 // LICENSE, which is part of this source code package
 
-#include "lancerdecode.h"
-#include "formats.h"
-#include "logging.h"
-#include "properties.h"
+#include <lancerdecode.h>
+#include "../formats.h"
+#include "../logging.h"
+#include "../properties.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>

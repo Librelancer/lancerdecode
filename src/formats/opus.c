@@ -1,9 +1,10 @@
-#include "formats.h"
-#include "libopusfile.h"
-#include "logging.h"
-#include "properties.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include "../formats.h"
+#include "libopusfile.h"
+#include "../logging.h"
+#include "../properties.h"
+
 #define OPUS_BUFFER_SIZE 32768
 
 static int libopus_stream_read(void *_stream, unsigned char *_ptr, int _nbytes)

@@ -2,12 +2,13 @@
 // This file is subject to the terms and conditions defined in
 // LICENSE, which is part of this source code package
 
-#include "lancerdecode.h" 
-#include "formats.h"
-#include "logging.h"
-#include "sbuffer.h"
+#include <lancerdecode.h>
+#include "../formats.h"
+#include "../logging.h"
+#include "../sbuffer.h"
+#include "../properties.h"
+
 #include "stb_vorbis.c"
-#include "properties.h"
 #define OGG_BUFFER_SIZE 32768
 
 const char *stb_vorbis_strerror(int err)

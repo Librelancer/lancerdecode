@@ -7,20 +7,20 @@ option(BUILD_LANCERDECODE_EXAMPLE "Build the lancerdecode example" FALSE)
 add_library(lancerdecode SHARED
 
 src/autoload.c
-src/flac.c
 src/logging.c
-src/mp3.c
-src/riff.c
 src/stream.c
 src/sbuffer.c
-src/vorbis.c
-src/libopusfile.c
-src/opus.c
 src/options.c
 src/hashmap.c
 src/properties.c
 src/pcmstream.c
 
+src/formats/flac.c
+src/formats/mp3.c
+src/formats/riff.c
+src/formats/vorbis.c
+src/formats/libopusfile.c
+src/formats/opus.c
 )
 
 target_include_directories(lancerdecode PUBLIC include)

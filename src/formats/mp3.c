@@ -2,11 +2,11 @@
 // This file is subject to the terms and conditions defined in
 // LICENSE, which is part of this source code package
 
-#include "lancerdecode.h"
-#include "formats.h"
-#include "logging.h"
-#include "properties.h"
+#include <lancerdecode.h>
 #include <stdlib.h>
+#include "../formats.h"
+#include "../logging.h"
+#include "../properties.h"
 
 #define DR_MP3_IMPLEMENTATION
 #define DR_MP3_NO_STDIO
