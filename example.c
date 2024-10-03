@@ -38,7 +38,7 @@ int main(int argc, char **argv)
         return 2;
     }
     
-    ld_pcmstream_t audio = ld_pcmstream_open(input);
+    ld_pcmstream_t audio = ld_pcmstream_open(input, NULL, NULL);
     if(!audio) {
         fprintf(stderr, "unable to decode %s\n", argv[1]);
         return 1;
@@ -55,7 +55,7 @@ int main(int argc, char **argv)
         "", "mono8", "mono16", "stereo8", "stereo16"
     };
     printf("format: %s\n", formats[audio->format]);
-    
+    ld_pcmstream_print_properties(audio);
     riff_header_t riff;
     memcpy(riff.chunkID, "RIFF", 4);
     memcpy(riff.format, "WAVE", 4);

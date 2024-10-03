@@ -16,6 +16,10 @@ src/sbuffer.c
 src/vorbis.c
 src/libopusfile.c
 src/opus.c
+src/options.c
+src/hashmap.c
+src/properties.c
+src/pcmstream.c
 
 )
 

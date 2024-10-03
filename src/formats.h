@@ -7,10 +7,10 @@
 #include "lancerdecode.h"
 
 
-ld_pcmstream_t riff_getstream(ld_stream_t stream);
-ld_pcmstream_t mp3_getstream(ld_stream_t stream, int decodeChannels, int decodeRate, int trimFrames, int totalFrames);
-ld_pcmstream_t vorbis_getstream(ld_stream_t stream);
-ld_pcmstream_t flac_getstream(ld_stream_t stream);
-ld_pcmstream_t opus_getstream(ld_stream_t stream);
+ld_pcmstream_t riff_getstream(ld_stream_t stream, ld_options_t options, const char **error);
+ld_pcmstream_t mp3_getstream(ld_stream_t stream, ld_options_t options, const char **error, int decodeChannels, int decodeRate, int trimFrames, int totalFrames);
+ld_pcmstream_t vorbis_getstream(ld_stream_t stream, ld_options_t options, const char **error);
+ld_pcmstream_t flac_getstream(ld_stream_t stream, ld_options_t options, const char **error, int isOgg);
+ld_pcmstream_t opus_getstream(ld_stream_t stream, ld_options_t options, const char **error);
 
 #endif 

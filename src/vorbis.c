@@ -7,6 +7,7 @@
 #include "logging.h"
 #include "sbuffer.h"
 #include "stb_vorbis.c"
+#include "properties.h"
 #define OGG_BUFFER_SIZE 32768
 
 const char *stb_vorbis_strerror(int err)
@@ -61,6 +62,7 @@ typedef struct {
 	stb_vorbis *vorbis;
     ld_stream_t sbuffer;
 	int channels;
+	ld_pcmstream_t pcm;
 } ogg_userdata_t;
 
 size_t ogg_read(void* ptr, size_t size, ld_stream_t stream)
@@ -68,7 +70,7 @@ size_t ogg_read(void* ptr, size_t size, ld_stream_t stream)
 	ogg_userdata_t *userdata = (ogg_userdata_t*)stream->userData;
 	size_t sz_bytes = size;
 	if((sz_bytes % 2) != 0) {
-		LOG_ERROR("ogg_read: buffer size must be a multiple of sizeof(short)");
+		LOG_S_ERROR(userdata->pcm, "ogg_read: buffer size must be a multiple of sizeof(short)");
 		return 0;
 	}
 	int num_shorts = sz_bytes / sizeof(short);
@@ -78,11 +80,11 @@ size_t ogg_read(void* ptr, size_t size, ld_stream_t stream)
 
 int ogg_seek(ld_stream_t stream, int32_t offset, LDSEEK origin)
 {
+	ogg_userdata_t *userdata = (ogg_userdata_t*)stream->userData;
 	if(origin != LDSEEK_SET || offset != 0) {
-		LOG_ERROR("ogg_seek: only can seek to LDSEEK_SET 0");
+		LOG_S_ERROR(userdata->pcm, "ogg_seek: only can seek to LDSEEK_SET 0");
 		return -1;
 	}
-	ogg_userdata_t *userdata = (ogg_userdata_t*)stream->userData;
 	stb_vorbis_seek(userdata->vorbis, 0);
 	return 0;
 }
@@ -97,14 +99,15 @@ void ogg_close(ld_stream_t stream)
 }
 
 
-ld_pcmstream_t vorbis_getstream(ld_stream_t stream)
+ld_pcmstream_t vorbis_getstream(ld_stream_t stream, ld_options_t options, const char **error)
 {
 	int err;
     ld_stream_t sbuffer = sbuffer_create(stream);
 	stb_vorbis *vorbis = stb_vorbis_open_file(sbuffer, 0, &err, NULL);
 	if(!vorbis) {
         sbuffer_free(sbuffer);
-		LOG_ERROR_F("Vorbis decode failed: %s", stb_vorbis_strerror(err));
+		LOG_O_ERROR_F(options, "Vorbis decode failed: %s", stb_vorbis_strerror(err));
+		*error = stb_vorbis_strerror(err);
 		stream->close(stream);
 		return NULL;
 	}
@@ -119,11 +122,14 @@ ld_pcmstream_t vorbis_getstream(ld_stream_t stream)
 	data->close = &ogg_close;
 	data->userData = userdata;
 
-	ld_pcmstream_t retsound = (ld_pcmstream_t)malloc(sizeof(struct ld_pcmstream));
+	ld_pcmstream_t retsound = pcmstream_init(options);
 	retsound->frequency = info.sample_rate;
+	userdata->pcm = retsound;
 	retsound->stream = data;
 	retsound->dataSize = -1;
 	retsound->blockSize = OGG_BUFFER_SIZE;
+    set_property_string(retsound, LD_PROPERTY_CONTAINER, "ogg");
+    set_property_string(retsound, LD_PROPERTY_CODEC, "vorbis");
 	if(info.channels == 2) {
 		retsound->format = LDFORMAT_STEREO16;
 	} else {

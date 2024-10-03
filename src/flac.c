@@ -5,6 +5,7 @@
 #include "lancerdecode.h"
 #include "formats.h"
 #include "logging.h"
+#include "properties.h"
 
 #define DR_FLAC_IMPLEMENTATION
 #define DR_FLAC_NO_STDIO
@@ -29,6 +30,7 @@ unsigned int seek_stream_drflac(void *pUserData, int offset, drflac_seek_origin 
 typedef struct {
 	drflac *pFlac;
 	ld_stream_t baseStream;
+	ld_pcmstream_t pcm;
 } flac_userdata_t;
 
 size_t flac_read(void* ptr, size_t size, ld_stream_t stream)
@@ -41,11 +43,11 @@ size_t flac_read(void* ptr, size_t size, ld_stream_t stream)
 
 int flac_seek(ld_stream_t stream, int32_t offset, int origin)
 {
+	flac_userdata_t *userdata = (flac_userdata_t*)stream->userData;
 	if(offset != 0 || origin != LDSEEK_SET) {
-		LOG_ERROR("flac seek only supports reset");
+		LOG_S_ERROR(userdata->pcm, "flac seek only supports reset");
 		return 0;
 	}
-	flac_userdata_t *userdata = (flac_userdata_t*)stream->userData;
 	return drflac_seek_to_sample(userdata->pFlac, 0);
 }
 
@@ -58,11 +60,12 @@ void flac_close(ld_stream_t stream)
 	free(stream);
 }
 
-ld_pcmstream_t flac_getstream(ld_stream_t stream)
+ld_pcmstream_t flac_getstream(ld_stream_t stream, ld_options_t options, const char **error, int isOgg)
 {
 	drflac *pFlac = drflac_open(read_stream_drflac, seek_stream_drflac, (void*)stream);
 	if(!pFlac) {
-		LOG_ERROR("Flac decode failed");
+		LOG_O_ERROR(options, "Flac decode failed");
+		*error = "Flac decode failed";
 		stream->close(stream);
 		return NULL;
 	}
@@ -71,17 +74,21 @@ ld_pcmstream_t flac_getstream(ld_stream_t stream)
 	userdata->pFlac = pFlac;
 	userdata->baseStream = stream;
 
+
 	ld_stream_t data = ld_stream_new();
 	data->read = &flac_read;
 	data->seek = &flac_seek;
 	data->close = &flac_close;
 	data->userData = userdata;
 
-	ld_pcmstream_t retsound = (ld_pcmstream_t)malloc(sizeof(struct ld_pcmstream));
+	ld_pcmstream_t retsound = pcmstream_init(options);
+	userdata->pcm = retsound;
 	retsound->frequency = pFlac->sampleRate;
 	retsound->stream = data;
 	retsound->dataSize = -1;
 	retsound->blockSize = 8192;
+    set_property_string(retsound, LD_PROPERTY_CONTAINER, isOgg ? "ogg" : "flac");
+    set_property_string(retsound, LD_PROPERTY_CODEC, "flac");
 	if(pFlac->channels == 2) {
 		retsound->format = LDFORMAT_STEREO16;
 	} else {

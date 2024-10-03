@@ -1,6 +1,7 @@
 #include "formats.h"
 #include "libopusfile.h"
 #include "logging.h"
+#include "properties.h"
 #include <stdio.h>
 #include <stdlib.h>
 #define OPUS_BUFFER_SIZE 32768
@@ -63,6 +64,7 @@ typedef struct opus_userdata {
     OggOpusFile *opus;
     int channels;
     int eof;
+    ld_pcmstream_t pcm;
 } opus_userdata_t;
 
 size_t opus_read(void* ptr, size_t size, ld_stream_t stream)
@@ -71,7 +73,7 @@ size_t opus_read(void* ptr, size_t size, ld_stream_t stream)
     if(userdata->eof) return 0;
     size_t sz_bytes = size;
 	if((sz_bytes % 2) != 0) {
-		LOG_ERROR("opus_read: buffer size must be a multiple of sizeof(short)");
+		LOG_S_ERROR(userdata->pcm, "opus_read: buffer size must be a multiple of sizeof(short)");
 		return 0;
 	}
     while(!userdata->eof) {
@@ -94,11 +96,11 @@ size_t opus_read(void* ptr, size_t size, ld_stream_t stream)
 
 int opus_seek(ld_stream_t stream, int32_t offset, LDSEEK origin)
 {
+    opus_userdata_t *userdata = (opus_userdata_t*)stream->userData;
 	if(origin != LDSEEK_SET || offset != 0) {
-		LOG_ERROR("opus_seek: only can seek to LDSEEK_SET 0");
+		LOG_S_ERROR(userdata->pcm, "opus_seek: only can seek to LDSEEK_SET 0");
 		return -1;
 	}
-	opus_userdata_t *userdata = (opus_userdata_t*)stream->userData;
     userdata->eof = 0;
     return op_raw_seek(userdata->opus, 0);
 }
@@ -111,10 +113,11 @@ void opus_close(ld_stream_t stream)
 	free(stream);
 }
 
-ld_pcmstream_t opus_getstream(ld_stream_t stream)
+ld_pcmstream_t opus_getstream(ld_stream_t stream, ld_options_t options, const char **error)
 {
     if(!libopusfile_Open()) {
-        LOG_ERROR("Unable to open libopus");
+        LOG_O_ERROR(options, "Unable to open libopus");
+        *error = "Unable to open libopus";
         return NULL;
     }
     OpusFileCallbacks cb = {
@@ -127,7 +130,8 @@ ld_pcmstream_t opus_getstream(ld_stream_t stream)
     int open_error;
     OggOpusFile *opus = op_open_callbacks(stream, &cb, NULL, 0, &open_error);
     if(!opus) {
-        LOG_ERROR_F("opus failed to open: %s", libopus_strerror(open_error));
+        LOG_O_ERROR_F(options, "opus failed to open: %s", libopus_strerror(open_error));
+        *error = "opus open failed";
         stream->close(stream);
         return NULL;
     }
@@ -135,7 +139,8 @@ ld_pcmstream_t opus_getstream(ld_stream_t stream)
     int channels = op_channel_count(opus, -1);
     if(channels <= 0) {
         op_free(opus);
-        LOG_ERROR("opus failed to get channels");
+        LOG_O_ERROR(options, "opus failed to get channels");
+        *error = "op_channel_count failed";
         return NULL;
     }
     if(channels > 2 || op_link_count(opus) != 1) {
@@ -152,12 +157,15 @@ ld_pcmstream_t opus_getstream(ld_stream_t stream)
 	data->close = &opus_close;
 	data->userData = userdata;
 
-    ld_pcmstream_t retsound = (ld_pcmstream_t)malloc(sizeof(struct ld_pcmstream));
+    ld_pcmstream_t retsound = pcmstream_init(options);
+    userdata->pcm = retsound;
 	retsound->frequency = 48000;
     retsound->dataSize = -1;
     retsound->blockSize = OPUS_BUFFER_SIZE;
     retsound->stream = data;
     retsound->format = channels == 2 ? LDFORMAT_STEREO16 : LDFORMAT_MONO16;
+    set_property_string(retsound, LD_PROPERTY_CONTAINER, "ogg");
+    set_property_string(retsound, LD_PROPERTY_CODEC, "opus");
     return retsound;
 }
 

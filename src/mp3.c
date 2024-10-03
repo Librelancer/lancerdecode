@@ -5,6 +5,7 @@
 #include "lancerdecode.h"
 #include "formats.h"
 #include "logging.h"
+#include "properties.h"
 #include <stdlib.h>
 
 #define DR_MP3_IMPLEMENTATION
@@ -16,6 +17,7 @@
 typedef struct {
 	drmp3 dec;
 	ld_stream_t baseStream;
+	ld_pcmstream_t pcm;
 	void *floatBuffer;
 	int floatBufferSize;
 	int currentFrames;
@@ -46,7 +48,7 @@ size_t mp3_read(void* ptr, size_t size, ld_stream_t stream)
 	mp3_userdata_t *userdata = (mp3_userdata_t*)stream->userData;
 	int sz_bytes = (int)(size);
 	if((sz_bytes % 2) != 0) {
-		LOG_ERROR("mp3_read: buffer size must be a multiple of sizeof(short)");
+		LOG_S_ERROR(userdata->pcm, "mp3_read: buffer size must be a multiple of sizeof(short)");
 		return 0;
 	}
 
@@ -70,11 +72,11 @@ size_t mp3_read(void* ptr, size_t size, ld_stream_t stream)
 }
 int mp3_seek(ld_stream_t stream, int32_t offset, LDSEEK origin)
 {
+	mp3_userdata_t *userdata = (mp3_userdata_t*)stream->userData;
 	if(origin != LDSEEK_SET || offset != 0) {
-		LOG_ERROR("mp3: can only seek to SET 0");
+		LOG_S_ERROR(userdata->pcm, "mp3: can only seek to SET 0");
 		return -1; 
 	}
-	mp3_userdata_t *userdata = (mp3_userdata_t*)stream->userData;
 	drmp3_seek_to_frame(&userdata->dec, (drmp3_uint64)userdata->trimFrames);
 	userdata->currentFrames = userdata->trimFrames;
 	return 0;	
@@ -89,7 +91,7 @@ void mp3_close(ld_stream_t stream)
 	free(stream);
 }
 
-ld_pcmstream_t mp3_getstream(ld_stream_t stream, int decodeChannels, int decodeRate, int trimFrames, int totalFrames)
+ld_pcmstream_t mp3_getstream(ld_stream_t stream, ld_options_t options, const char **error, int decodeChannels, int decodeRate, int trimFrames, int totalFrames)
 {
 	mp3_userdata_t *userdata = (mp3_userdata_t*)malloc(sizeof(mp3_userdata_t));
     memset((void*)userdata, 0, sizeof(mp3_userdata_t));
@@ -103,7 +105,8 @@ ld_pcmstream_t mp3_getstream(ld_stream_t stream, int decodeChannels, int decodeR
 	else
 		drconfig.outputChannels = decodeChannels;
 	if(!drmp3_init(&userdata->dec,read_stream_drmp3,seek_stream_drmp3,(void*)stream,&drconfig)) {
-		LOG_ERROR("drmp3_init failed!");
+		LOG_O_ERROR(options, "drmp3_init failed!");
+		*error = "drmp3_init failed";
 		free(userdata);
 		return NULL;
 	}
@@ -123,7 +126,8 @@ ld_pcmstream_t mp3_getstream(ld_stream_t stream, int decodeChannels, int decodeR
 		userdata->currentFrames = trimFrames;
 		userdata->totalFrames += trimFrames;
 	}
-	ld_pcmstream_t retsound = (ld_pcmstream_t)malloc(sizeof(struct ld_pcmstream));
+	ld_pcmstream_t retsound = pcmstream_init(options);
+	userdata->pcm = retsound;
 	retsound->dataSize = -1;
 	if(userdata->dec.channels == 2) {
 		retsound->format = LDFORMAT_STEREO16;
@@ -134,5 +138,11 @@ ld_pcmstream_t mp3_getstream(ld_stream_t stream, int decodeChannels, int decodeR
 	retsound->frequency = (int32_t)userdata->dec.sampleRate;
 	retsound->stream = decodeStream;
 	retsound->blockSize = MP3_BUFFER_SIZE;
+    set_property_string(retsound, LD_PROPERTY_CONTAINER, decodeChannels == -1 ? "mp3" : "wav");
+    set_property_string(retsound, LD_PROPERTY_CODEC, "mp3");
+	if(trimFrames != -1 && totalFrames != -1) {
+		set_property_int(retsound, LD_PROPERTY_FL_TRIM, trimFrames);
+		set_property_int(retsound, LD_PROPERTY_FL_SAMPLES, totalFrames);
+	}
 	return retsound;
 }

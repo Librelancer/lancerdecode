@@ -2,19 +2,18 @@
 // This file is subject to the terms and conditions defined in
 // LICENSE, which is part of this source code package
 
-#include "lancerdecode.h"
 #include "logging.h"
 #include <stdarg.h>
 #include <stdio.h>
-ld_errorlog_callback_t callback;
 
-LDEXPORT void ld_errorlog_register(ld_errorlog_callback_t cb)
+void ld_logf(ld_options_t options, int error, const char *fmt, ...)
 {
-	callback = cb;
-}
-
-void ld_logerrorf(const char *fmt, ...)
-{
+	ld_msgcallback_t callback = NULL;
+	if(options) {
+		callback = error 
+			? options->msgerror
+			: options->msginfo;
+	}
     char buffer[1024];
 	va_list args;
 	va_start(args, fmt);
@@ -22,6 +21,6 @@ void ld_logerrorf(const char *fmt, ...)
 	if(callback)
         callback(buffer);
 	else
-        fprintf(stderr, "%s\n", buffer);
+        fprintf(error ? stderr : stdout, "%s\n", buffer);
 	va_end(args);
 }

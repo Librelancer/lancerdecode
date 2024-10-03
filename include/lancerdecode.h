@@ -30,8 +30,20 @@ typedef int32_t LDSEEK;
 #define LDEXPORT
 #endif
 
+typedef void (*ld_msgcallback_t)(const char*);
+
+
+typedef struct ld_options *ld_options_t;
+
+LDEXPORT ld_options_t ld_options_new();
+LDEXPORT void ld_options_set_msginfo(ld_options_t opts, ld_msgcallback_t cb);
+LDEXPORT void ld_options_set_msgerror(ld_options_t opts, ld_msgcallback_t cb);
+LDEXPORT void ld_options_free(ld_options_t opts);
+
+
 typedef struct ld_stream *ld_stream_t;
 typedef struct ld_pcmstream *ld_pcmstream_t;
+typedef struct ld_pcmstream_internal *ld_pcmstream_internal_t;
 
 struct ld_stream {
     size_t (*read)(void* buffer,size_t size,ld_stream_t stream);
@@ -63,16 +75,32 @@ struct ld_pcmstream {
 	int32_t frequency; /* sample rate e.g. 44100 */
 	LDFORMAT format; /* format */
 	int32_t blockSize; /* suggested buffer size when reading this audio data */
+	ld_pcmstream_internal_t _internal; /* internal use */
 };
 
 /* Opens an audio file from stream, initialising a decoder if necessary */
-LDEXPORT ld_pcmstream_t ld_pcmstream_open(ld_stream_t stream);
+LDEXPORT ld_pcmstream_t ld_pcmstream_open(ld_stream_t stream, ld_options_t options, const char **error);
+
+/* STRING: Codec of the audio file */
+#define LD_PROPERTY_CODEC ("ld.codec")
+/* STRING: Container of the audio file */
+#define LD_PROPERTY_CONTAINER ("ld.container")
+/* INTEGER: trim property from Freelancer .wav (already applied to stream) */
+#define LD_PROPERTY_FL_TRIM ("fl.trim")
+/* INTEGER: max samples in Freelancer .wav (already applied to stream) */
+#define LD_PROPERTY_FL_SAMPLES ("fl.samples")
+
+/* Gets an integer property from an open ld_pcmstream_t */
+/* Returns 1 on success */
+LDEXPORT int ld_pcmstream_get_int(ld_pcmstream_t stream, const char *property, int* value);
+/* Gets a string property from an open ld_pcmstream_t
+ * Returns the amount of characters written to buffer
+*/
+LDEXPORT int ld_pcmstream_get_string(ld_pcmstream_t stream, const char *property, char *buffer, int size);
+/* Prints all properties to msginfo/stdout on an open ld_pcmstream_t */
+LDEXPORT void ld_pcmstream_print_properties(ld_pcmstream_t stream);
 /* Closes the PCM stream */
 LDEXPORT void ld_pcmstream_close(ld_pcmstream_t stream);
-
-/* Used when lancerdecode wants to print logging information */
-typedef void (*ld_errorlog_callback_t)(const char*);
-LDEXPORT void ld_errorlog_register(ld_errorlog_callback_t cb);
 #ifdef __cplusplus
 }
 #endif

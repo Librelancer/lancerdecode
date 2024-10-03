@@ -5,10 +5,20 @@
 #ifndef _LOGGING_H_
 #define _LOGGING_H_
 
-#ifndef LOG_ERROR
-#define LOG_ERROR_F(x, ...) ld_logerrorf(x, __VA_ARGS__);
-#define LOG_ERROR(x) ld_logerrorf(x);
-#endif
+#include "pcmstream.h"
+#include "options.h"
 
-void ld_logerrorf(const char *fmt, ...);
+#define LOG_O_ERROR_F(o, x, ...) ld_logf((o), 0, x, __VA_ARGS__);
+#define LOG_O_ERROR(o, x) ld_logf((o), 0, x);
+
+#define LOG_O_INFO_F(o, x, ...) ld_logf((o), 1, x, __VA_ARGS__);
+#define LOG_O_INFO(o, x, ...) ld_logf((o), 1, x);
+
+#define LOG_S_ERROR_F(o, x, ...) ld_logf(&((o)->_internal->options), 1, x, __VA_ARGS__);
+#define LOG_S_ERROR(o, x) ld_logf(&((o)->_internal->options), 1, x);
+
+#define LOG_S_INFO_F(o, x, ...) ld_logf(&((o)->_internal->options), 0, x, __VA_ARGS__);
+#define LOG_S_INFO(o, x, ...) ld_logf(&((o)->_internal->options), 0, x);
+
+void ld_logf(ld_options_t options, int error, const char *fmt, ...);
 #endif 
