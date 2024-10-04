@@ -4,6 +4,7 @@
 
 #include <lancerdecode.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include "../formats.h"
 #include "../logging.h"
 #include "../properties.h"
@@ -91,6 +92,96 @@ void mp3_close(ld_stream_t stream)
 	free(stream);
 }
 
+static int xing_offsets[] = {
+	17, 32,
+	9, 17,
+	9, 17
+};
+
+//lame tag
+//LAMEXXXXX (9 bytes)
+//InfoTagRevision (1 byte)
+//Lowpass filter (1 byte)
+//replay game (8 bytes)
+//encoding flags (1 byte)
+//minimal bitrate (1 byte)
+//encoder delays (3 bytes)
+static int read_bigendian(ld_stream_t stream, uint32_t* value)
+{
+	unsigned char np[4];
+	if(stream->read(np, 4, stream) < 4) {
+		return 0; //read failed
+	}
+	*value = ((uint32_t)np[0] << 24) |
+        ((uint32_t)np[1] << 16) |
+        ((uint32_t)np[2] << 8) |
+        (uint32_t)np[3];
+	return 1;
+}
+static void mp3_readheader(ld_stream_t stream, int *trimStart, int *totalLength)
+{
+	unsigned char header[4];
+	if(stream->read(header, 4, stream) < 4) {
+		return; //read failed
+	}
+	// check mpeg header
+	if((((header[0] & 0xFF) << 8)  | ((header[1] & 0xE0))) != 0xFFE0)  {
+		return;
+	}
+	int versionInt = (header[1] >> 3);
+	int mpgVersion;
+	if((versionInt & 0x03) == 0x03) {
+		mpgVersion = 0; //mpeg 1
+	} else if ((versionInt & 0x02) == 0x02) {
+		mpgVersion = 1;//mpeg 2
+	} else if ((versionInt & 0x03) == 0) {
+		mpgVersion = 2; //mpeg 2.5
+	} else {
+		return; // unknown version
+	}
+	int channels = ((header[3] >> 6) & 0x03) == 0x03 ? 1 : 2;
+	int offset = xing_offsets[mpgVersion * 2 + (channels - 1)];
+	stream->seek(stream, offset, LDSEEK_CUR);
+	if(stream->read(header, 4, stream) < 4) {
+		return; //read failed;
+	}
+	if(memcmp(header, "Xing", 4) && memcmp(header, "Info", 4)) {
+		return; //header not found
+	}
+	//header flags
+	if(stream->read(header, 4, stream) < 4) {
+		return; //read failed
+	}
+	uint32_t numFrames = 0;
+	if(((header[3] & 0x1) == 0x1) &&
+	   !read_bigendian(stream, &numFrames)) {
+		return;
+	}
+	uint32_t streamSize = 0;
+	if(((header[3] & 0x2) == 0x2) &&
+		!read_bigendian(stream, &streamSize)) {
+		return;
+	}
+	stream->seek(stream, 104, LDSEEK_CUR);
+	if(stream->read(header, 4, stream) < 4) {
+		return; //read failed
+	}
+	if(memcmp(header, "LAME", 4)) {
+		return; //not LAME
+	}
+	stream->seek(stream, 17, LDSEEK_CUR); //skip to encoder delays
+	if(stream->read(header, 3, stream) < 3) {
+		return; //read failed
+	}
+	int delay = (header[0] << 4) | (header[1] >> 4 & 0xF);
+	int pad = (header[1] << 8 & 0xF00) | (header[2]);
+
+	int s = delay + 1152 + 529;
+
+	*trimStart = s;
+	*totalLength = (int)((numFrames * 1152) - pad - delay);
+}
+
 ld_pcmstream_t mp3_getstream(ld_stream_t stream, ld_options_t options, const char **error, int decodeChannels, int decodeRate, int trimFrames, int totalFrames)
 {
 	mp3_userdata_t *userdata = (mp3_userdata_t*)malloc(sizeof(mp3_userdata_t));
@@ -104,6 +195,11 @@ ld_pcmstream_t mp3_getstream(ld_stream_t stream, ld_options_t options, const cha
 		drconfig.outputChannels = 0;
 	else
 		drconfig.outputChannels = decodeChannels;
+
+	int mp3Start = -1;
+	int mp3Length = -1;
+	mp3_readheader(stream, &mp3Start, &mp3Length);
+	stream->seek(stream, 0, LDSEEK_SET);
 	if(!drmp3_init(&userdata->dec,read_stream_drmp3,seek_stream_drmp3,(void*)stream,&drconfig)) {
 		LOG_O_ERROR(options, "drmp3_init failed!");
 		*error = "drmp3_init failed";
@@ -125,6 +221,15 @@ ld_pcmstream_t mp3_getstream(ld_stream_t stream, ld_options_t options, const cha
 		drmp3_seek_to_frame(&userdata->dec, (drmp3_uint64)(trimFrames));
 		userdata->currentFrames = trimFrames;
 		userdata->totalFrames += trimFrames;
+	} else if(
+		decodeChannels == -1 
+		&& mp3Start != -1 
+		&& mp3Length != -1) 
+	{
+		drmp3_seek_to_frame(&userdata->dec, (drmp3_uint64)(mp3Start));
+		userdata->trimFrames = mp3Start;
+		userdata->currentFrames = mp3Start;
+		userdata->totalFrames = mp3Length + mp3Start;
 	}
 	ld_pcmstream_t retsound = pcmstream_init(options);
 	userdata->pcm = retsound;
@@ -143,6 +248,10 @@ ld_pcmstream_t mp3_getstream(ld_stream_t stream, ld_options_t options, const cha
 	if(trimFrames != -1 && totalFrames != -1) {
 		set_property_int(retsound, LD_PROPERTY_FL_TRIM, trimFrames);
 		set_property_int(retsound, LD_PROPERTY_FL_SAMPLES, totalFrames);
+	}
+	if(mp3Start != -1 && mp3Length != -1) {
+		set_property_int(retsound, LD_PROPERTY_MP3_TRIM, mp3Start);
+		set_property_int(retsound, LD_PROPERTY_MP3_SAMPLES, mp3Length);
 	}
 	return retsound;
 }

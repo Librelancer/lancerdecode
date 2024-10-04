@@ -89,7 +89,10 @@ LDEXPORT ld_pcmstream_t ld_pcmstream_open(ld_stream_t stream, ld_options_t optio
 #define LD_PROPERTY_FL_TRIM ("fl.trim")
 /* INTEGER: max samples in Freelancer .wav (already applied to stream) */
 #define LD_PROPERTY_FL_SAMPLES ("fl.samples")
-
+/* INTEGER: trim property from mp3 (applied when not .wav container) */
+#define LD_PROPERTY_MP3_TRIM ("mp3.trim")
+/* INTEGER: max samples in mp3 (applied when not .wav container) */
+#define LD_PROPERTY_MP3_SAMPLES ("mp3.samples")
 /* Gets an integer property from an open ld_pcmstream_t */
 /* Returns 1 on success */
 LDEXPORT int ld_pcmstream_get_int(ld_pcmstream_t stream, const char *property, int* value);
