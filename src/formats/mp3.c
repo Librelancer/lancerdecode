@@ -66,7 +66,7 @@ size_t mp3_read(void* ptr, size_t size, ld_stream_t stream)
 		userdata->floatBuffer = malloc(floatsz);
 		userdata->floatBufferSize = floatsz;
 	}
-	drmp3_uint64 fcount = drmp3_read_f32(&userdata->dec, (drmp3_uint64)requestedFrames, (float*)userdata->floatBuffer);
+	drmp3_uint64 fcount = drmp3_read_pcm_frames_f32(&userdata->dec, (drmp3_uint64)requestedFrames, (float*)userdata->floatBuffer);
 	drmp3dec_f32_to_s16((float*)userdata->floatBuffer, (drmp3_int16*)ptr, (int)(fcount * userdata->dec.channels));
 	userdata->currentFrames += (int)fcount;
 	return (size_t)(fcount * userdata->dec.channels * 2);
@@ -78,7 +78,7 @@ int mp3_seek(ld_stream_t stream, int32_t offset, LDSEEK origin)
 		LOG_S_ERROR(userdata->pcm, "mp3: can only seek to SET 0");
 		return -1; 
 	}
-	drmp3_seek_to_frame(&userdata->dec, (drmp3_uint64)userdata->trimFrames);
+	drmp3_seek_to_pcm_frame(&userdata->dec, (drmp3_uint64)userdata->trimFrames);
 	userdata->currentFrames = userdata->trimFrames;
 	return 0;	
 }
@@ -186,21 +186,11 @@ ld_pcmstream_t mp3_getstream(ld_stream_t stream, ld_options_t options, const cha
 {
 	mp3_userdata_t *userdata = (mp3_userdata_t*)malloc(sizeof(mp3_userdata_t));
     memset((void*)userdata, 0, sizeof(mp3_userdata_t));
-    drmp3_config drconfig;
-	if(decodeRate == -1)
-		drconfig.outputSampleRate = 0;
-	else
-		drconfig.outputSampleRate = decodeRate;
-	if(decodeChannels == -1)
-		drconfig.outputChannels = 0;
-	else
-		drconfig.outputChannels = decodeChannels;
-
 	int mp3Start = -1;
 	int mp3Length = -1;
 	mp3_readheader(stream, &mp3Start, &mp3Length);
 	stream->seek(stream, 0, LDSEEK_SET);
-	if(!drmp3_init(&userdata->dec,read_stream_drmp3,seek_stream_drmp3,(void*)stream,&drconfig)) {
+	if(!drmp3_init(&userdata->dec,read_stream_drmp3,seek_stream_drmp3,(void*)stream, NULL)) {
 		LOG_O_ERROR(options, "drmp3_init failed!");
 		*error = "drmp3_init failed";
 		free(userdata);
@@ -218,7 +208,7 @@ ld_pcmstream_t mp3_getstream(ld_stream_t stream, ld_options_t options, const cha
 	decodeStream->seek = mp3_seek;
 	decodeStream->close = mp3_close;
 	if(trimFrames != -1) {
-		drmp3_seek_to_frame(&userdata->dec, (drmp3_uint64)(trimFrames));
+		drmp3_seek_to_pcm_frame(&userdata->dec, (drmp3_uint64)(trimFrames));
 		userdata->currentFrames = trimFrames;
 		userdata->totalFrames += trimFrames;
 	} else if(
@@ -226,7 +216,7 @@ ld_pcmstream_t mp3_getstream(ld_stream_t stream, ld_options_t options, const cha
 		&& mp3Start != -1 
 		&& mp3Length != -1) 
 	{
-		drmp3_seek_to_frame(&userdata->dec, (drmp3_uint64)(mp3Start));
+		drmp3_seek_to_pcm_frame(&userdata->dec, (drmp3_uint64)(mp3Start));
 		userdata->trimFrames = mp3Start;
 		userdata->currentFrames = mp3Start;
 		userdata->totalFrames = mp3Length + mp3Start;
@@ -246,8 +236,13 @@ ld_pcmstream_t mp3_getstream(ld_stream_t stream, ld_options_t options, const cha
     set_property_string(retsound, LD_PROPERTY_CONTAINER, decodeChannels == -1 ? "mp3" : "wav");
     set_property_string(retsound, LD_PROPERTY_CODEC, "mp3");
 	if(trimFrames != -1 && totalFrames != -1) {
-		set_property_int(retsound, LD_PROPERTY_FL_TRIM, trimFrames);
-		set_property_int(retsound, LD_PROPERTY_FL_SAMPLES, totalFrames);
+		if(userdata->dec.sampleRate != decodeRate ||
+		   userdata->dec.channels != decodeChannels) {
+			LOG_O_ERROR(options, "wav container for mp3 stream has incorrect fmt chunk");
+		} else {
+			set_property_int(retsound, LD_PROPERTY_FL_TRIM, trimFrames);
+			set_property_int(retsound, LD_PROPERTY_FL_SAMPLES, totalFrames);
+		}
 	}
 	if(mp3Start != -1 && mp3Length != -1) {
 		set_property_int(retsound, LD_PROPERTY_MP3_TRIM, mp3Start);
