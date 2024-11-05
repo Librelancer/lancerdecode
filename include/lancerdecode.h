@@ -25,9 +25,13 @@ typedef int32_t LDSEEK;
 #define LDEOF -256
 
 #ifdef _WIN32
+#if BUILDING_LANCERDECODE
 #define LDEXPORT __declspec(dllexport)
 #else
-#define LDEXPORT
+#define LDEXPORT __declspec(dllimport)
+#endif
+#else
+#define LDEXPORT __attribute__((visibility("default")))
 #endif
 
 typedef void (*ld_msgcallback_t)(const char*);

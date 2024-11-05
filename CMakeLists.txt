@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.1)
+cmake_minimum_required (VERSION 3.3...3.28)
 set(CMAKE_C_STANDARD 99)
 project (lancerdecode)
 
@@ -24,6 +24,9 @@ src/formats/opus.c
 )
 
 target_include_directories(lancerdecode PUBLIC include)
+set_target_properties(lancerdecode PROPERTIES C_VISIBILITY_PRESET hidden)
+target_compile_definitions(lancerdecode PRIVATE -DBUILDING_LANCERDECODE)
+
 if (NOT WIN32)
   target_link_libraries(lancerdecode m)
 endif()
