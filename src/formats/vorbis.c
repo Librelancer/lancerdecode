@@ -8,6 +8,7 @@
 #include "../sbuffer.h"
 #include "../properties.h"
 
+#define STB_VORBIS_NO_PUSHDATA_API
 #include "stb_vorbis.c"
 #define OGG_BUFFER_SIZE 32768
 
@@ -98,7 +99,6 @@ void ogg_close(ld_stream_t stream)
 	free(userdata);
 	free(stream);
 }
-
 
 ld_pcmstream_t vorbis_getstream(ld_stream_t stream, ld_options_t options, const char **error)
 {
