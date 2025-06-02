@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.3...3.28)
+cmake_minimum_required (VERSION 3.15...3.28)
 set(CMAKE_C_STANDARD 99)
 project (lancerdecode)
 
