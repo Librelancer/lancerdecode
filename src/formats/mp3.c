@@ -176,10 +176,12 @@ static void mp3_readheader(ld_stream_t stream, int *trimStart, int *totalLength)
 	int delay = (header[0] << 4) | (header[1] >> 4 & 0xF);
 	int pad = (header[1] << 8 & 0xF00) | (header[2]);
 
-	int s = delay + 1152 + 529;
+	int samplesPerFrame = (mpgVersion == 0) ? 1152 : 576;
+
+	int s = delay + samplesPerFrame + 529;
 
 	*trimStart = s;
-	*totalLength = (int)((numFrames * 1152) - pad - delay);
+	*totalLength = (int)((numFrames * samplesPerFrame) - pad - delay);
 }
 
 ld_pcmstream_t mp3_getstream(ld_stream_t stream, ld_options_t options, const char **error, int decodeChannels, int decodeRate, int trimFrames, int totalFrames)
